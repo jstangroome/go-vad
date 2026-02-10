@@ -1,0 +1,133 @@
+package vad
+
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// LoadAudioFile loads an audio file and returns normalized AudioData.
+// Supports WAV natively, and other formats (MP3, FLAC, etc.) via ffmpeg.
+func LoadAudioFile(filePath string) (*AudioData, error) {
+	ext := strings.ToLower(filepath.Ext(filePath))
+
+	// Handle WAV files natively
+	if ext == ".wav" {
+		return loadWAV(filePath)
+	}
+
+	// For other formats, convert to WAV using ffmpeg
+	return loadViaFFmpeg(filePath)
+}
+
+// loadWAV loads a WAV file and normalizes samples to [-1.0, 1.0]
+func loadWAV(filePath string) (*AudioData, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read WAV header
+	header := make([]byte, 44)
+	if _, err := io.ReadFull(file, header); err != nil {
+		return nil, fmt.Errorf("failed to read WAV header: %w", err)
+	}
+
+	// Verify WAV format
+	if string(header[0:4]) != "RIFF" || string(header[8:12]) != "WAVE" {
+		return nil, fmt.Errorf("invalid WAV file format")
+	}
+
+	// Parse header
+	channels := int(binary.LittleEndian.Uint16(header[22:24]))
+	sampleRate := int(binary.LittleEndian.Uint32(header[24:28]))
+	bitsPerSample := int(binary.LittleEndian.Uint16(header[34:36]))
+
+	if bitsPerSample != 16 {
+		return nil, fmt.Errorf("only 16-bit WAV files are supported, got %d-bit", bitsPerSample)
+	}
+
+	// Read audio data
+	var samples []float64
+	buffer := make([]byte, 2) // 16-bit = 2 bytes
+
+	for {
+		n, err := file.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error reading audio data: %w", err)
+		}
+		if n < 2 {
+			break
+		}
+
+		// Convert 16-bit PCM to normalized float64
+		sample := int16(binary.LittleEndian.Uint16(buffer))
+		normalized := float64(sample) / 32768.0
+		samples = append(samples, normalized)
+	}
+
+	if len(samples) == 0 {
+		return nil, fmt.Errorf("no audio samples found")
+	}
+
+	duration := time.Duration(float64(len(samples)/channels) / float64(sampleRate) * float64(time.Second))
+
+	return &AudioData{
+		Samples:    samples,
+		SampleRate: sampleRate,
+		Channels:   channels,
+		Duration:   duration,
+		FileName:   filepath.Base(filePath),
+	}, nil
+}
+
+// loadViaFFmpeg converts audio to WAV using ffmpeg and loads it.
+func loadViaFFmpeg(filePath string) (*AudioData, error) {
+	// Check if ffmpeg is available
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		return nil, fmt.Errorf("ffmpeg not found in PATH (required for %s files)", filepath.Ext(filePath))
+	}
+
+	// Create temporary WAV file
+	tempFile, err := os.CreateTemp("", "audio-*.wav")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	tempFile.Close()
+	defer os.Remove(tempPath)
+
+	// Convert to WAV using ffmpeg
+	cmd := exec.Command("ffmpeg",
+		"-i", filePath,
+		"-acodec", "pcm_s16le",
+		"-ar", "16000", // Standard sample rate
+		"-ac", "1",     // Convert to mono
+		"-y",           // Overwrite output
+		tempPath,
+	)
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("ffmpeg conversion failed: %w\nOutput: %s", err, output)
+	}
+
+	// Load the converted WAV file
+	audioData, err := loadWAV(tempPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update filename to original
+	audioData.FileName = filepath.Base(filePath)
+
+	return audioData, nil
+}
