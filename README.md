@@ -5,6 +5,9 @@ A pure Go implementation of Voice Activity Detection (VAD) using energy-based an
 ## Features
 
 - **No external ML dependencies** - Pure signal processing approach
+- **Dual processing modes**:
+  - **Batch processing**: Process complete audio files
+  - **Streaming processing**: Real-time incremental processing
 - **Dual VAD implementations**:
   - **Basic VAD**: Fixed thresholds for consistent behavior
   - **Adaptive VAD**: Dynamic thresholds that adapt to audio characteristics (recommended)
@@ -14,6 +17,9 @@ A pure Go implementation of Voice Activity Detection (VAD) using energy-based an
 - **Configurable parameters**: All thresholds and timing parameters adjustable
 - **Sample rate agnostic**: Works with any sample rate (8kHz-48kHz tested)
 - **Multiple format support**: WAV (native), MP3, FLAC, etc. (via ffmpeg)
+- **Real-time events**: Streaming mode emits SpeechStarted/SpeechEnded events
+- **Low latency**: Typical detection latency 50-75ms for streaming
+- **Lightweight**: ~3-5KB memory per streaming instance
 
 ## Installation
 
@@ -96,6 +102,77 @@ vadInstance = vad.NewAdaptiveVAD(config)
 // Detect speech
 segments := vadInstance.DetectSpeech(audioData)
 ```
+
+### Streaming VAD (Real-Time Processing)
+
+Process audio incrementally for real-time applications like live microphone input or network streaming:
+
+#### Basic Streaming
+
+```go
+// Create streaming VAD
+config := vad.DefaultConfig()
+sampleRate := 16000
+streamVAD := vad.NewStreamingVAD(config, sampleRate)
+
+// Process audio chunks as they arrive
+for chunk := range audioStream {
+    // chunk is []float64 mono audio normalized to [-1.0, 1.0]
+    event := streamVAD.ProcessChunk(chunk)
+
+    switch event.Type {
+    case vad.EventSpeechStarted:
+        fmt.Printf("Speech started at %.2fs\n", event.Timestamp.Seconds())
+        // Start recording, wake up ASR, etc.
+
+    case vad.EventSpeechEnded:
+        segment := event.Segment
+        fmt.Printf("Speech ended at %.2fs, duration: %.2fs\n",
+            event.Timestamp.Seconds(), segment.Duration.Seconds())
+        // Process complete segment
+    }
+}
+
+// When stream ends, flush remaining audio
+finalEvent := streamVAD.Flush()
+if finalEvent.Type == vad.EventSpeechEnded {
+    // Handle final segment
+}
+```
+
+#### Adaptive Streaming (Recommended)
+
+```go
+// Create adaptive streaming VAD
+streamVAD := vad.NewStreamingAdaptiveVAD(config, sampleRate)
+
+// Process chunks (same API as basic streaming)
+event := streamVAD.ProcessChunk(chunk)
+```
+
+#### Streaming Features
+
+- **Event-based API**: Returns `StreamEvent` with type (None, SpeechStarted, SpeechEnded)
+- **Flexible chunk sizes**: Works with any chunk size (10ms, 100ms, etc.)
+- **Automatic buffering**: Handles partial frames across chunk boundaries
+- **State management**: Tracks speech segments across multiple chunks
+- **Reset capability**: Call `Reset()` to reuse for new stream
+- **Low memory**: ~3KB (basic) or ~5KB (adaptive) per instance
+
+#### Streaming Use Cases
+
+- Live microphone input processing
+- WebRTC/VoIP speech detection
+- Real-time transcription systems
+- Voice-activated triggers
+- Network audio streaming
+- Low-latency conversational AI
+
+#### Latency Characteristics
+
+- **Minimum latency**: 25ms (1 frame)
+- **Typical latency**: 50-75ms (includes median filtering)
+- **Adaptive warm-up**: ~200ms (20 frames to build history)
 
 ### Configuration Parameters
 
@@ -233,6 +310,23 @@ type SpeechSegment struct {
 }
 ```
 
+### StreamEvent (Streaming API)
+
+```go
+type StreamEvent struct {
+    Type      StreamEventType // None, SpeechStarted, or SpeechEnded
+    Timestamp time.Duration   // Event timestamp relative to stream start
+    Segment   *SpeechSegment  // Complete segment (only for SpeechEnded events)
+}
+
+type StreamEventType int
+const (
+    EventNone          StreamEventType = 0
+    EventSpeechStarted StreamEventType = 1
+    EventSpeechEnded   StreamEventType = 2
+)
+```
+
 ## Performance
 
 ### Computational Complexity
@@ -243,9 +337,20 @@ type SpeechSegment struct {
 
 ### Memory Usage
 
+#### Batch Processing
 - **AudioData**: ~8 bytes per sample
 - **Processing**: Additional ~2x for frame buffers
 - **Total**: ~20-30 MB for 1 minute of audio
+
+#### Streaming Processing
+- **StreamingVAD**: ~3KB per instance
+  - Sample buffer (1 frame)
+  - State tracking
+  - Median filter buffer (3 decisions)
+- **StreamingAdaptiveVAD**: ~5KB per instance
+  - Includes feature history (100 frames × 2 features)
+  - Circular buffers for adaptive thresholds
+- **Suitable for**: Real-time applications with limited memory
 
 ## Troubleshooting
 
@@ -276,12 +381,14 @@ type SpeechSegment struct {
 
 See the [examples](examples/) directory for complete working examples:
 
-- [basic](examples/basic/main.go): Simple VAD usage
-- [adaptive](examples/adaptive/main.go): Adaptive VAD with custom config
+- [basic](examples/basic/main.go): Simple batch VAD usage
+- [adaptive](examples/adaptive/main.go): Adaptive batch VAD with custom config
 - [comparison](examples/comparison/main.go): Compare Basic vs Adaptive VAD
+- [streaming](examples/streaming/main.go): Real-time streaming VAD with event handling
 
 ## Use Cases
 
+### Batch Processing
 - Speaker diarization (who spoke when)
 - Conversation turn detection
 - Audio quality analysis
@@ -289,6 +396,15 @@ See the [examples](examples/) directory for complete working examples:
 - Latency measurement in conversational AI
 - Preprocessing for speech recognition
 - Audio compression (skip silence)
+
+### Real-Time Streaming
+- Live microphone input monitoring
+- Voice-activated recording triggers
+- Real-time transcription systems
+- WebRTC/VoIP speech detection
+- Voice activity indicators in conferencing
+- Low-latency conversational AI
+- Speech endpoint detection
 
 ## Technical Details
 
