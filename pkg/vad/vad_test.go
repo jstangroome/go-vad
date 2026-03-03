@@ -248,6 +248,7 @@ func TestNewVAD(t *testing.T) {
 	vad1 := NewVAD(nil)
 	if vad1 == nil {
 		t.Error("NewVAD(nil) returned nil")
+		return
 	}
 	if vad1.config == nil {
 		t.Error("NewVAD(nil) has nil config")
@@ -261,6 +262,7 @@ func TestNewVAD(t *testing.T) {
 	vad2 := NewVAD(config)
 	if vad2 == nil {
 		t.Error("NewVAD(config) returned nil")
+		return
 	}
 	if vad2.config.EnergyThreshold != 0.05 {
 		t.Errorf("VAD config EnergyThreshold = %v, expected 0.05", vad2.config.EnergyThreshold)
@@ -273,6 +275,7 @@ func TestNewAdaptiveVAD(t *testing.T) {
 	vad1 := NewAdaptiveVAD(nil)
 	if vad1 == nil {
 		t.Error("NewAdaptiveVAD(nil) returned nil")
+		return
 	}
 	if vad1.config == nil {
 		t.Error("NewAdaptiveVAD(nil) has nil config")
@@ -286,6 +289,7 @@ func TestNewAdaptiveVAD(t *testing.T) {
 	vad2 := NewAdaptiveVAD(config)
 	if vad2 == nil {
 		t.Error("NewAdaptiveVAD(config) returned nil")
+		return
 	}
 	if vad2.config.EnergyThreshold != 0.05 {
 		t.Errorf("AdaptiveVAD config EnergyThreshold = %v, expected 0.05", vad2.config.EnergyThreshold)

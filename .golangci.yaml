@@ -1,0 +1,12 @@
+version: "2"
+linters:
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - noctx
+
+  settings:
+    gosec:
+      excludes:
+        #- G115

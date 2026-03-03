@@ -21,20 +21,6 @@ func generateSilence(length int) []float64 {
 	return make([]float64, length)
 }
 
-// Test helper: Generate noise (high energy, high ZCR)
-func generateNoise(length int) []float64 {
-	samples := make([]float64, length)
-	for i := range samples {
-		// Alternating pattern creates high ZCR
-		if i%2 == 0 {
-			samples[i] = 0.05
-		} else {
-			samples[i] = -0.05
-		}
-	}
-	return samples
-}
-
 func TestNewStreamingVAD(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -189,10 +175,10 @@ func TestStreamingVAD_VariableChunkSizes(t *testing.T) {
 
 	// Test different chunk sizes
 	chunkSizes := []int{
-		int(float64(sampleRate) * 0.01),  // 10ms
-		int(float64(sampleRate) * 0.05),  // 50ms
-		int(float64(sampleRate) * 0.1),   // 100ms
-		int(float64(sampleRate) * 0.5),   // 500ms
+		int(float64(sampleRate) * 0.01), // 10ms
+		int(float64(sampleRate) * 0.05), // 50ms
+		int(float64(sampleRate) * 0.1),  // 100ms
+		int(float64(sampleRate) * 0.5),  // 500ms
 	}
 
 	for _, size := range chunkSizes {
