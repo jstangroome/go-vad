@@ -49,7 +49,11 @@ func (v *AdaptiveVAD) DetectSpeech(audioData *AudioData) []SpeechSegment {
 
 	for i, frame := range frames {
 		energies[i] = calculateEnergy(frame)
-		zcrs[i] = calculateZCR(frame)
+		if v.config.DisableZCR {
+			zcrs[i] = -1
+		} else {
+			zcrs[i] = calculateZCR(frame)
+		}
 	}
 
 	// Apply adaptive thresholding
@@ -57,7 +61,10 @@ func (v *AdaptiveVAD) DetectSpeech(audioData *AudioData) []SpeechSegment {
 	for i := range frames {
 		// Get local window for dynamic threshold calculation
 		energyThreshold := v.calculateDynamicThreshold(energies, i, windowSize)
-		zcrThreshold := v.calculateDynamicZCRThreshold(zcrs, i, windowSize)
+		var zcrThreshold float64 = 0
+		if !v.config.DisableZCR {
+			zcrThreshold = v.calculateDynamicZCRThreshold(zcrs, i, windowSize)
+		}
 
 		// Dual-threshold decision
 		isSpeech[i] = energies[i] > energyThreshold && zcrs[i] < zcrThreshold

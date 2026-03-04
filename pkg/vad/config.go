@@ -23,6 +23,10 @@ type Config struct {
 	// Noise has higher ZCR
 	ZCRThreshold float64
 
+	// DisableZCR, if true, disables ZCR feature for VAD decisions
+	// Default: false
+	DisableZCR bool
+
 	// MinSpeechDuration is the minimum speech duration to keep
 	// Default: 300ms
 	// Filters out short noise bursts

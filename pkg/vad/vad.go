@@ -44,7 +44,11 @@ func (v *VAD) DetectSpeech(audioData *AudioData) []SpeechSegment {
 
 	for i, frame := range frames {
 		energies[i] = calculateEnergy(frame)
-		zcrs[i] = calculateZCR(frame)
+		if v.config.DisableZCR {
+			zcrs[i] = -1
+		} else {
+			zcrs[i] = calculateZCR(frame)
+		}
 
 		// Dual-threshold decision: high energy AND low ZCR indicates speech
 		isSpeech[i] = energies[i] > v.config.EnergyThreshold &&

@@ -102,14 +102,20 @@ func (s *StreamingAdaptiveVAD) ProcessChunk(samples []float64) StreamEvent {
 func (s *StreamingAdaptiveVAD) processFrame(frame []float64) StreamEvent {
 	// Calculate features using existing functions
 	energy := calculateEnergy(frame)
-	zcr := calculateZCR(frame)
+	var zcr float64 = -1
+	if !s.config.DisableZCR {
+		zcr = calculateZCR(frame)
+	}
 
 	// Update feature history
 	s.updateFeatureHistory(energy, zcr)
 
 	// Calculate dynamic thresholds from history
 	energyThreshold := s.calculateDynamicThresholdStreaming()
-	zcrThreshold := s.calculateDynamicZCRThresholdStreaming()
+	var zcrThreshold float64
+	if !s.config.DisableZCR {
+		zcrThreshold = s.calculateDynamicZCRThresholdStreaming()
+	}
 
 	// Apply threshold (dual-threshold decision)
 	isSpeech := energy > energyThreshold && zcr < zcrThreshold
@@ -129,10 +135,12 @@ func (s *StreamingAdaptiveVAD) updateFeatureHistory(energy, zcr float64) {
 		s.energyHistory = s.energyHistory[1:]
 	}
 
-	// Add to ZCR history
-	s.zcrHistory = append(s.zcrHistory, zcr)
-	if len(s.zcrHistory) > s.historyMaxSize {
-		s.zcrHistory = s.zcrHistory[1:]
+	if !s.config.DisableZCR {
+		// Add to ZCR history
+		s.zcrHistory = append(s.zcrHistory, zcr)
+		if len(s.zcrHistory) > s.historyMaxSize {
+			s.zcrHistory = s.zcrHistory[1:]
+		}
 	}
 }
 

@@ -85,7 +85,10 @@ func (s *StreamingVAD) ProcessChunk(samples []float64) StreamEvent {
 func (s *StreamingVAD) processFrame(frame []float64) StreamEvent {
 	// Calculate features using existing functions
 	energy := calculateEnergy(frame)
-	zcr := calculateZCR(frame)
+	var zcr float64 = -1
+	if !s.config.DisableZCR {
+		zcr = calculateZCR(frame)
+	}
 
 	// Apply threshold (dual-threshold decision)
 	isSpeech := energy > s.config.EnergyThreshold &&
