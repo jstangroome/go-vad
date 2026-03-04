@@ -60,6 +60,12 @@ func NewStreamingAdaptiveVAD(config *Config, sampleRate int) *StreamingAdaptiveV
 	}
 }
 
+func (s *StreamingAdaptiveVAD) ResetFeatureHistoryCapacity(newCapacityInHops int) {
+	s.historyMaxSize = newCapacityInHops
+	s.energyHistory = make([]float64, 0, newCapacityInHops)
+	s.zcrHistory = make([]float64, 0, newCapacityInHops)
+}
+
 // ProcessChunk processes a chunk of audio samples and returns events.
 // Samples should be mono audio normalized to [-1.0, 1.0].
 // Returns a StreamEvent which may be EventNone, EventSpeechStarted, or EventSpeechEnded.
