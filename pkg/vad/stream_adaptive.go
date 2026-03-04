@@ -154,11 +154,10 @@ func (s *StreamingAdaptiveVAD) calculateDynamicThresholdStreaming() float64 {
 	threshold := localEnergies[percentileIndex]
 
 	// Apply bounds to prevent unreasonable values
-	const minThreshold = 0.0001
 	const maxThreshold = 0.08
 
-	if threshold < minThreshold {
-		threshold = minThreshold
+	if threshold < s.config.MinAdaptiveEnergyThreshold {
+		threshold = s.config.MinAdaptiveEnergyThreshold
 	}
 	if threshold > maxThreshold {
 		threshold = maxThreshold

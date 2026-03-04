@@ -11,6 +11,11 @@ type Config struct {
 	// Higher = less sensitive (only loud speech)
 	EnergyThreshold float64
 
+	// MinAdaptiveEnergyThreshold is the minimum energy threshold for adaptive VAD
+	// Range: 0.0 - 1.0 (normalized audio range)
+	// Default: 0.0001
+	MinAdaptiveEnergyThreshold float64
+
 	// ZCRThreshold is the zero crossing rate threshold
 	// Range: 0.0 - 1.0 (fraction of frame length)
 	// Default: 0.1
@@ -44,6 +49,8 @@ func DefaultConfig() *Config {
 		MinSpeechDuration: 300 * time.Millisecond,
 		FrameSize:         25 * time.Millisecond,
 		HopSize:           10 * time.Millisecond,
+
+		MinAdaptiveEnergyThreshold: 0.0001,
 	}
 }
 
